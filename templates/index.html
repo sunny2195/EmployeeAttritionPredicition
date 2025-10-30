@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Attrition Risk Predictor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; }
+        .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 5px; background-color: #f4f4f4; }
+        .high-risk { background-color: #ffdddd; border: 1px solid #f00; }
+        .low-risk { background-color: #ddffdd; border: 1px solid #0f0; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="number"], select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { margin-top: 20px; padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Talent Retention Risk Assessment</h2>
+        <form method="POST">
+            <label for="monthly_income">Monthly Income (₹):</label>
+            <input type="number" id="monthly_income" name="MonthlyIncome" required value=
+            "{{ user_input.MonthlyIncome if user_input else 6500 }}">
+
+            <label for="job_satisfaction">Job Satisfaction (1-4):</label>
+            <input type="number" id="job_satisfaction" name="JobSatisfaction" min="1" max="4" required value="{{ user_input.JobSatisfaction if user_input else 2 }}">
+
+            <label for="years_at_company">Years At Company:</label>
+            <input type="number" id="years_at_company" name="YearsAtCompany" required value="{{ user_input.YearsAtCompany if user_input else 4 }}">
+
+            <label for="overtime">OverTime:</label>
+            <select id="overtime" name="OverTime">
+                <option value="1">Yes</option>
+                <option value="0" selected>No</option>
+            </select>
+            
+            <button type="submit">Predict Attrition Risk</button>
+        </form>
+
+        {% if prediction_result %}
+        <div class="result {% if 'HIGH RISK' in prediction_result %}high-risk{% else %}low-risk{% endif %}">
+            <h3>Prediction Result</h3>
+            <p><strong>Risk Level:</strong> {{ prediction_result }}</p>
+            <p><strong>Predicted Probability of Attrition:</strong> {{ score }}</p>
+            
+        </div>
+        {% endif %}
+
+    </div>
+</body>
+</html>
