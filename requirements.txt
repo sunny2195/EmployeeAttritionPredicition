@@ -1,0 +1,19 @@
+python-dotenv
+pandas
+numpy==1.26.4
+scikit-learn
+matplotlib
+seaborn
+flask
+XGBoost
+pymongo
+pymongo[srv]==3.6
+certifi
+dill
+pyaml
+mlflow==2.12.1
+dagshub
+fastapi
+uvicorn
+
+##-e .
