@@ -32,7 +32,7 @@ jobs:
         # Use a short commit SHA for unique versioning
         echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
         # REPLACE 'your-dockerhub-username' with your actual Docker Hub username
-        echo "IMAGE_REPO=your-dockerhub-username/employee-attrition-predictor" >> $GITHUB_OUTPUT 
+        echo "IMAGE_REPO=dheeraj68357/employee-attrition-predictor" >> $GITHUB_OUTPUT 
 
     # 3. Build and Push the Docker Image
     - name: Build and push Docker image
