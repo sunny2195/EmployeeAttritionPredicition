@@ -15,5 +15,5 @@ mlflow==2.12.1
 dagshub
 fastapi
 uvicorn
-
+imbalanced-learn
 ##-e .

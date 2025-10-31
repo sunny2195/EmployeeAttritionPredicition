@@ -90,6 +90,38 @@ class ModelTrainerConfig:
 
     models_to_train: dict = field(default_factory=lambda: {
         "LogisticRegression": {},
-        "DecisionTreeClassifier": {'max_depth': 5},
-        "RandomForestClassifier": {'n_estimators': 100, 'max_depth': 8}
+        "DecisionTreeClassifier": {},
+        "RandomForestClassifier": {},
+        "XGBClassifier": {} # Added XGBoost placeholder
+    })
+    
+    # --- HYPERPARAMETER GRIDS (The Search Space) ---
+    tuning_grids: dict = field(default_factory=lambda: {
+        "LogisticRegression": {
+            'C': [0.01, 0.1, 1.0, 10.0],  
+            'penalty': ['l2'],
+            'solver': ['liblinear'] 
+        },
+        "DecisionTreeClassifier": {
+            'max_depth': [5, 8, 12],
+            'min_samples_split': [10, 20],
+            'criterion': ['gini', 'entropy'],
+            'class_weight': ['balanced', None]
+        },
+        "RandomForestClassifier": {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [8, 12, None],
+            'min_samples_leaf': [2, 4, 8],
+            'class_weight': ['balanced', None]
+        },
+        # --- XGBOOST GRID (Specific to Gradient Boosting) ---
+        "XGBClassifier": {
+            # Low learning rate often improves accuracy
+            'learning_rate': [0.05, 0.1, 0.2],
+            'n_estimators': [100, 200],
+            # Control tree complexity
+            'max_depth': [3, 5, 7],
+            # Used for dealing with class imbalance within XGBoost
+            'scale_pos_weight': [1, 5] 
+        }
     })

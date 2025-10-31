@@ -62,6 +62,7 @@ FEATURE_COLUMNS = [
 # --- Configuration & Artifact Paths ---
 MODEL_PATH = Path('artifacts/model_trainer/best_model.pkl')
 SCALER_PATH = Path('artifacts/data_transformation/scaler.pkl')
+THRESHOLD_PATH = Path('artifacts/model_trainer/optimal_threshold.pkl')
 
 
 
@@ -69,6 +70,7 @@ SCALER_PATH = Path('artifacts/data_transformation/scaler.pkl')
 app = Flask(__name__)
 model = None # The model will be loaded upon startup
 scaler = None
+optimal_threshold = 0.5
 
 def load_artifacts():
     """Load the trained model and scaler object."""
