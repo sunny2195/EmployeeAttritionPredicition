@@ -4,29 +4,41 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Dict, Any, List
-
-# --- Core ML Imports ---
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score, precision_score, recall_score, classification_report, make_scorer
-
-# --- Model Imports ---
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier 
-
-# Import project foundational classes
 from EAP.entity.config_entity import ModelTrainerConfig
 from EAP.exception.exception import CustomException
 from EAP.utils.utils import save_object, load_object # Added load_object for final step
+from lazypredict.Supervised import LazyClassifier
 
-# ====================================================================
-# HELPER FUNCTION: Model Evaluation (Scores at default 0.50 threshold)
-# ====================================================================
+
+
+def perform_lazy_benchmark(X_train, X_test, y_train, y_test):
+    try:
+        print("\n--- Starting LazyPredict Model Benchmarking ---")
+        clf = LazyClassifier(
+            verbose=0,
+            ignore_warnings=True, 
+            custom_metric=None
+        )
+        
+        models, predictions = clf.fit(X_train, X_test, y_train, y_test)
+        
+        print("\nLazyPredict Benchmark Complete:")
+        print(models)
+        models.to_csv(Path("artifacts/model_trainer/lazypredict_benchmark.csv"), index=True)
+        
+        return models
+
+    except Exception as e:
+        print(f"LazyPredict encountered an error. Skipping benchmark: {e}")
+        return None
 
 def evaluate_models(model, X_test, y_test, target_names: List[str]) -> Dict[str, float]:
-    """Evaluates a single fitted model, focusing on F1-Score for Attrition=1 (at default 0.50 threshold)."""
-    # ... (Function body remains the same) ...
     try:
         y_test_pred = model.predict(X_test)
         
@@ -44,12 +56,7 @@ def evaluate_models(model, X_test, y_test, target_names: List[str]) -> Dict[str,
         raise CustomException(f"Error during model evaluation: {e}", sys)
 
 
-# ====================================================================
-# NEW HELPER FUNCTION: OPTIMIZE THRESHOLD (Finds the true max F1)
-# ====================================================================
-
 def find_optimal_threshold(model, X_test, y_test) -> tuple[float, float]:
-    """Finds the optimal prediction threshold to maximize F1-Score on the test set."""
     try:
         y_pred_proba = model.predict_proba(X_test)[:, 1]
         thresholds = np.arange(0.05, 0.96, 0.01)
@@ -70,10 +77,30 @@ def find_optimal_threshold(model, X_test, y_test) -> tuple[float, float]:
         raise CustomException(f"Error during threshold optimization: {e}", sys)
 
 # ... (perform_grid_search unchanged) ...
+def perform_grid_search(model_base, param_grid: dict, X_train, y_train, random_state: int, model_name: str):
+    try:
+        print(f"\n--- Starting Grid Search for {model_name} ---")
+        f1_scorer = make_scorer(f1_score, pos_label=1) 
+        
+        # Grid Search setup
+        grid_search = GridSearchCV(
+            estimator=model_base,
+            param_grid=param_grid,
+            scoring=f1_scorer,
+            cv=5,
+            verbose=0,
+            n_jobs=-1
+        )
 
-# ====================================================================
-# MAIN COMPONENT: ModelTrainer (Final Logic)
-# ====================================================================
+        grid_search.fit(X_train, y_train)
+
+        print(f"  Best parameters found: {grid_search.best_params_}")
+        print(f"  Best cross-validated F1 Score: {grid_search.best_score_:.4f}")
+        
+        return grid_search.best_estimator_
+
+    except Exception as e:
+        raise CustomException(f"Error during Grid Search for {model_name}: {e}", sys)
 
 class ModelTrainer:
     def __init__(self, config: ModelTrainerConfig):
@@ -83,19 +110,20 @@ class ModelTrainer:
         try:
             print("Starting Model Trainer component...")
 
-            # 1. Load Data
+        
             root_dir = Path("artifacts/data_transformation")
             X_train = pd.read_csv(Path(os.path.join(root_dir, "train_data.csv")))
             X_test = pd.read_csv(Path(os.path.join(root_dir, "test_data.csv")))
             y_train = pd.read_csv(Path(os.path.join(root_dir, "train_target.csv"))).iloc[:, 0]
             y_test = pd.read_csv(Path(os.path.join(root_dir, "test_target.csv"))).iloc[:, 0]
-            
-            # ... (Calculate native weighting) ...
+        
             neg_count = y_train.value_counts()[0]
             pos_count = y_train.value_counts()[1]
             scale_pos_weight_value = neg_count / pos_count 
+
+            print("\nStarting initial Model Benchmark (LazyPredict)...")
+            benchmark_results = perform_lazy_benchmark(X_train, X_test, y_train, y_test)
             
-            # 2. Initialize BASE Models
             base_models = {
                 "LogisticRegression": LogisticRegression(random_state=self.trainer_config.random_state, solver=self.trainer_config.solver, class_weight='balanced'),
                 "DecisionTreeClassifier": DecisionTreeClassifier(random_state=self.trainer_config.random_state, class_weight='balanced'),
@@ -108,46 +136,45 @@ class ModelTrainer:
             }
             
             tuned_models_candidates = {}
-            best_f1_default = -1 # Used to track the best model based on default 0.50 threshold
+            best_f1_default = -1 
             best_model_name_default = None
             
-            # 3. HYPERPARAMETER TUNING LOOP (Finds the best-tuned estimator for each model)
+            
             print("\nStarting Hyperparameter Tuning and Final Evaluation...")
             for name, model_base in base_models.items():
-                # ... (Grid Search logic here, saves best estimator to tuned_estimator) ...
-                
-                # We skip the tuning loop here, assuming you run it and get the tuned_estimator
-                # For the sake of completing the logic:
-                tuned_estimator = model_base # In reality, this would be the result of perform_grid_search
-                tuned_estimator.fit(X_train, y_train) # Fit the best model found
+                param_grid = self.trainer_config.tuning_grids.get(name, {})
+                tuned_estimator = perform_grid_search(
+                    model_base, 
+                    param_grid, 
+                    X_train, y_train, 
+                    self.trainer_config.random_state,
+                    name
+                )
+
+                tuned_estimator = model_base 
+                tuned_estimator.fit(X_train, y_train) 
                 
                 metrics = evaluate_models(tuned_estimator, X_test, y_test, ['No Attrition (0)', 'Attrition (1)'])
                 
-                # Track the best model based on the DEFAULT F1 score (before optimization)
                 if metrics['f1_score'] > best_f1_default:
                     best_f1_default = metrics['f1_score']
                     best_model_name_default = name
                     best_model = tuned_estimator
             
-            # --- 4. OPTIMIZE THRESHOLD ON THE BEST MODEL ---
             print(f"\n--- Optimizing Threshold for Best Model ({best_model_name_default}) ---")
             
             optimal_threshold, max_f1_score = find_optimal_threshold(
                 best_model, X_test, y_test
             )
             
-            # 5. Final Results Summary
             print(f"\n--- FINAL TUNING REPORT ---")
             print(f"Best Model Identified: {best_model_name_default}")
             print(f"F1 Score (Default 0.50): {best_f1_default:.4f}")
             print(f"Max Achievable F1 Score: {max_f1_score:.4f} (at Threshold: {optimal_threshold:.2f})")
-            
-            # --- 6. Save the Optimal Threshold Artifact ---
-            # Create a simple artifact to store the threshold value for the Flask app to use
+        
             threshold_path = Path(os.path.join(self.trainer_config.root_dir, "optimal_threshold.pkl"))
             save_object(file_path=threshold_path, obj=optimal_threshold)
-            
-            # Save the Best Model Artifact
+           
             os.makedirs(self.trainer_config.root_dir, exist_ok=True)
             save_object(
                 file_path=Path(os.path.join(self.trainer_config.root_dir, self.trainer_config.trained_model_file)),

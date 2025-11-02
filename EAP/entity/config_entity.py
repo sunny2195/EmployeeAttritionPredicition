@@ -2,63 +2,36 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import os
 
-# --- Configuration for Data Ingestion ---
-@dataclass(frozen=True) # frozen=True makes the object immutable after creation
+
+@dataclass(frozen=True) 
 class DataIngestionConfig:
-    """Configuration for reading and locating the raw data."""
     root_dir: Path = Path('artifacts/data_ingestion')
-    # Use the Windows path structure for demonstration, but Path converts it safely.
     raw_data_path: Path = Path(r'D:\Projects\Employee Attiriton Prediction\Data\EmployeeData.csv')
-    
-    # Store the filename that we'll create in the artifacts folder
     ingested_data_file: str = "EmployeeData.csv"
 
 @dataclass(frozen=True)
 class DataValidationConfig:
-    """Configuration for data validation checks."""
     root_dir: Path = Path('artifacts/data_validation')
-    
-    # Path to the data file from the ingestion step
     data_to_validate_path: Path = Path('artifacts/data_ingestion/EmployeeData.csv')
-    
-    # File to store the validation status (e.g., "PASSED" or "FAILED")
     status_file: Path = Path('artifacts/data_validation/validation_status.txt')
-    
-    # Define the expected schema (all 35 original columns)
     schema_file_path: Path = Path("schema.yaml")
-    
-    # Expected number of columns
     expected_column_count: int = 35
 
-# --- Configuration for Data Transformation ---
 @dataclass(frozen=True)
 class DataTransformationConfig:
-    """Configuration for cleaning, encoding, and scaling the data."""
     root_dir: Path = Path('artifacts/data_transformation')
-    
-    # Input file from Data Ingestion (path will be constructed)
     ingested_data_file: str = DataIngestionConfig().ingested_data_file
-
-    # Output file name for the final ML-ready, scaled data
     transformed_data_file: str = "EmployeeData_Scaled.csv"
-    
-    # Columns to be dropped
     columns_to_drop: list = field(default_factory=lambda: [
         'EmployeeCount', 'StandardHours', 'Over18', 'EmployeeNumber'
     ])
-    
-    # Columns for Label Encoding (Binary and Target)
     label_encode_cols: list = field(default_factory=lambda: [
         'Attrition', 'Gender', 'OverTime'
     ])
-    
-    # Columns for One-Hot Encoding
     one_hot_encode_cols: list = field(default_factory=lambda: [
         'BusinessTravel', 'Department', 'EducationField', 'JobRole', 
         'MaritalStatus'
     ])
-
-    # Columns for Standard Scaling (numerical/ordinal)
     standard_scale_cols: list = field(default_factory=lambda: [
         'Age', 'DailyRate', 'DistanceFromHome', 'Education', 'EnvironmentSatisfaction',
         'HourlyRate', 'JobInvolvement', 'JobLevel', 'JobSatisfaction', 
@@ -68,34 +41,21 @@ class DataTransformationConfig:
         'YearsAtCompany', 'YearsInCurrentRole', 'YearsSinceLastPromotion', 
         'YearsWithCurrManager'
     ])
-
-# --- Configuration for Model Trainer ---
 @dataclass(frozen=True)
 class ModelTrainerConfig:
-    """Configuration for model training and selection."""
     root_dir: Path = Path('artifacts/model_trainer')
-    
-    # Input file from Data Transformation
     transformed_data_file: str = DataTransformationConfig().transformed_data_file
-    
-    # Output file name for the trained model (using a common format like .pkl)
     trained_model_file: str = "best_model.pkl"
-
-    # Training Parameters
     target_column: str = "Attrition"
     test_size: float = 0.3
     random_state: int = 42
-    
     solver: str = 'liblinear'
-
     models_to_train: dict = field(default_factory=lambda: {
         "LogisticRegression": {},
         "DecisionTreeClassifier": {},
         "RandomForestClassifier": {},
-        "XGBClassifier": {} # Added XGBoost placeholder
+        "XGBClassifier": {} 
     })
-    
-    # --- HYPERPARAMETER GRIDS (The Search Space) ---
     tuning_grids: dict = field(default_factory=lambda: {
         "LogisticRegression": {
             'C': [0.01, 0.1, 1.0, 10.0],  
@@ -114,14 +74,10 @@ class ModelTrainerConfig:
             'min_samples_leaf': [2, 4, 8],
             'class_weight': ['balanced', None]
         },
-        # --- XGBOOST GRID (Specific to Gradient Boosting) ---
         "XGBClassifier": {
-            # Low learning rate often improves accuracy
             'learning_rate': [0.05, 0.1, 0.2],
             'n_estimators': [100, 200],
-            # Control tree complexity
             'max_depth': [3, 5, 7],
-            # Used for dealing with class imbalance within XGBoost
             'scale_pos_weight': [1, 5] 
         }
     })
